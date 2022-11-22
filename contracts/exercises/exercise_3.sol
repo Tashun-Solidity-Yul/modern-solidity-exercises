@@ -4,13 +4,13 @@ pragma solidity ^0.8.0;
 
 contract Exercise_3 {
     // up to 2 ** 128 - 1 
-    uint128 public C = 4;
+    uint128 public C =  2 ** 128 - 1;
     // up to 2 ** 96 - 1
-    uint96 public D = 6;
+    uint96 public D =  2 ** 96 - 1;
     // up to 2 ** 16 - 1
-    uint16 public E = 8;
+    uint16 public E =  2 ** 16 - 1;
     // up to 2 ** 8 - 1
-    uint8 public F = 1;
+    uint8 public F =  2 ** 8 - 1;
 
     bytes32 testval;
 
@@ -112,13 +112,17 @@ contract Exercise_3 {
 
     function writeC(uint128 val) public {
         assembly {
-        // load C
-            let localC := sload(C.slot)
+            // let tempVal := not(shl(mul(C.slot,8),0xffffffffffffffffffffffffffffffff))
+            // sstore(100,tempVal)
+            // load C
+            let localCValue := sload(C.slot)
             // clear old C from slot
-            let tempVal := not(shl(mul(),))
+            let clearedC := and(localCValue, 0xffffffffffffffffffffffffffffffff00000000000000000000000000000000)
             //shift new C to offset
+            let shiftedValue := shl(mul(C.slot,8),val)
             // take the or and get the new value
             // store slot relating to C
+            sstore(C.slot,or(shiftedValue,clearedC))
         }
     }
 /**
@@ -129,7 +133,7 @@ contract Exercise_3 {
         assembly {
         let dValue := sload(D.slot)
 
-        // let byteVale := not(shl(mul(D.offset, 8), 0xffffffffffffffffffffffff))
+            // let byteVale := not(shl(mul(D.offset, 8), 0xffffffffffffffffffffffff))
             // let valueClearedBytes := and(dValue, byteVale)
             // sstore(testval.slot,byteVale)
             let valueClearedBytes := and(dValue, 0xffffffff000000000000000000000000ffffffffffffffffffffffffffffffff)
@@ -145,9 +149,9 @@ contract Exercise_3 {
                 // load E locally
                 let localEValue := sload(E.slot)
                 // clear the E value from slot
-               let byteVale := not(shl(mul(E.offset, 8), 0xffff))
-                sstore(testval.slot,byteVale)
-                let clearedE := and (localEValue, 0xffffffffffffffffffffffffffff0000ffffffffffffffffffffffffffffffff)
+            //    let byteVale := not(shl(mul(E.offset, 8), 0xffff))
+                // sstore(testval.slot,byteVale)
+                let clearedE := and (localEValue, 0xffff0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff)
 
                 let shiftedValue := shl(mul(E.offset, 8), val)
 
@@ -155,6 +159,16 @@ contract Exercise_3 {
 
             }
 
+        }
+
+        function writeF(uint8 val) public {
+            assembly {
+            let localF := sload(F.slot)
+            // print('0x' + hex(0xff<<30*8)[2:].zfill(64).replace('f','t').replace('0','f').replace('t','0')) - on python
+            let clearedF := and(localF, 0xff00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff)
+            let shiftedValue := shl(mul(F.offset,8), val)
+            sstore(F.slot,or(shiftedValue,clearedF))
+            }
         }
 
 }
