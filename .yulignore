@@ -8,5 +8,12 @@ typechain-types
 #Hardhat files
 cache
 artifacts
-/*/**/artifact/
+.env
+.idea
+.vscode
 
+out
+scripts
+src
+test
+.git
