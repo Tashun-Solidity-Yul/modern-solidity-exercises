@@ -13,7 +13,7 @@ require('hardhat-dependency-compiler');
 module.exports = {
     defaultNetwork: "hardhat",
     networks: {
-        hardhat: {},
+        hardhat: {allowUnlimitedContractSize: true},
         localhost: {
             url: "http://127.0.0.1:8545",
             gas: 2500000,
@@ -50,7 +50,7 @@ module.exports = {
     solidity: {
         compilers: [
             {
-                version: "0.8.7"
+                version: "0.8.16"
 
             },
             {version: "0.7.6"},
