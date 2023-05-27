@@ -9,3 +9,4 @@ contract solidityContract is IInterface {
     function get99(uint256 s) external override view returns(uint256) {
         return 99;
     }
+}

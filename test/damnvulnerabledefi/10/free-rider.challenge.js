@@ -3,7 +3,7 @@ const pairJson = require("@uniswap/v2-core/build/UniswapV2Pair.json");
 const factoryJson = require("@uniswap/v2-core/build/UniswapV2Factory.json");
 const routerJson = require("@uniswap/v2-periphery/build/UniswapV2Router02.json");
 
-const {ethers} = require('hardhat');
+const {ethers, upgrades} = require('hardhat');
 const {expect} = require('chai');
 
 describe('[Challenge] Free Rider', function () {
