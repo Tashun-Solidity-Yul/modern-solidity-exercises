@@ -1,13 +1,15 @@
-# Sample Hardhat Project
+# Solidity Exercises
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a script that deploys that contract.
+This project includes,
+1. practice exercises for Gas Exercise and Advance Solidity Exercises.
+2. DamnVulnerableDefi Question and solutions provided in an hardhat environment.
+3. Signature vulnerabilities related Exercises
 
-Try running some of the following tasks:
 
-```shell
-npx hardhat help
-npx hardhat test
-GAS_REPORT=true npx hardhat test
-npx hardhat node
-npx hardhat run scripts/deploy.js
+Environment Variables
+```agsl
+POLYGONSCAN_API_KEY
+PRIVATE_KEY
+STAGING_ALCHEMY_KEY
+POLYGON_RPC_PROVIDER
 ```

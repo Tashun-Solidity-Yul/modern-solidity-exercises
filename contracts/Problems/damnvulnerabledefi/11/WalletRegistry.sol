@@ -90,7 +90,7 @@ contract WalletRegistry is IProxyCreationCallback, Ownable {
         if (bytes4(initializer[: 4]) != GnosisSafe.setup.selector) {
             revert InvalidInitialization();
         }
-
+        console.logBytes4(GnosisSafe.execTransaction.selector);
         // Ensure wallet initialization is the expected
         uint256 threshold = GnosisSafe(walletAddress).getThreshold();
         if (threshold != EXPECTED_THRESHOLD) {
@@ -112,7 +112,8 @@ contract WalletRegistry is IProxyCreationCallback, Ownable {
         }
 
         address fallbackManager = _getFallbackManager(walletAddress);
-        //        console.log(fallbackManager);
+                console.log("fallbackManager");
+                console.log(fallbackManager);
         if (fallbackManager != address(0))
             revert InvalidFallbackManager(fallbackManager);
 

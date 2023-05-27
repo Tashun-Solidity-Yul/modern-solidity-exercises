@@ -16,7 +16,7 @@ interface IERC20InYul {
 
 contract ProxyForYulContract {
     IERC20InYul target;
-    constructor(IERC20InYul _target) {
+    function setContract(IERC20InYul _target) external {
         target = _target;
     }
 

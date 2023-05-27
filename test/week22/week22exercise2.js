@@ -1,62 +1,44 @@
 const {ethers} = require('hardhat');
 const {expect} = require('chai');
-describe("Gnosis", function () {
-    it("should deploy the gnosis contract fine", async function () {
+const {loadFixture} = require("ethereum-waffle");
+describe("Week22Exercise2", function () {
+    const deployToken = async () => {
         const [deployer] = await ethers.getSigners();
-        const characters = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"];
         let ContractFactory = await ethers.getContractFactory(
             "Week22Exercise2",
             deployer
         );
-        let contractInstance = await ContractFactory.deploy();
-        await expect(contractInstance.deployed()).to.be.ok;
-        let condition = true;
-        let permanentString = ""
-        let temporaryString = "5t5y"
-        let counter1 = 0; // loop through permanent string index
-        let counter2 = 0; // loop through characters array
+        const contractInstance = await ContractFactory.deploy();
+        return {deployer, contractInstance}
+    }
 
-        while (condition) {
-            try {
-                temporaryString =getNextString(temporaryString, characters)
-                const a = await deployer.signMessage(temporaryString);
+    async function getTransactionDataHash(tx) {
+        const data = {
+            type: 2,
+            maxPriorityFeePerGas: tx.maxPriorityFeePerGas,
+            maxFeePerGas: tx.maxFeePerGas,
+            gasLimit: tx.gasLimit,
+            to: tx.to,
+            value: tx.value,
+            nonce: tx.nonce,
+            data: tx.data,
+            chainId: tx.chainId,
+        };
 
-                console.log(temporaryString)
-                await contractInstance.challenge(temporaryString, a)
-                condition = false;
-                console.log(temporaryString)
-                console.log(a)
-            } catch (e) {
+        const resolvedData = await ethers.utils.resolveProperties(data);
+        const serializedTransaction = ethers.utils.serializeTransaction(resolvedData);
+        const hash = ethers.utils.keccak256(serializedTransaction);
+        return {hash, serializedTransaction};
+    }
 
-            }
+    it("should not be reverted when calling challenge function", async function () {
 
-        }
-        console.log(getNextString("az", characters));
+
+        const {contractInstance} = await loadFixture(deployToken);
+
+        await contractInstance.challenge("attack at dawn" , "0xe5d0b13209c030a26b72ddb84866ae7b32f806d64f28136cb5516ab6ca15d3c438d9e7c79efa063198fda1a5b48e878a954d79372ed71922003f847029bf2e751b");
+
+
     });
 });
 
-function getNextString(currentString, charactersArray) {
-
-    let returnString = "";
-    let tempString = "";
-
-    tempString = currentString.substring(0, currentString.length - 1);
-
-    const lastCharacter = currentString[currentString.length - 1];
-    const index = charactersArray.indexOf(lastCharacter);
-
-
-    if (index + 1 < charactersArray.length) {
-        returnString += tempString + charactersArray[index + 1]
-
-    } else {
-        if (!(tempString.length > 0)) {
-            returnString += getNextString(tempString, charactersArray) + charactersArray[0]
-        } else {
-            returnString += getNextString(tempString, charactersArray) + charactersArray[0]
-        }
-
-    }
-
-    return returnString;
-}
